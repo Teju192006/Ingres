@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>💧 Jalvaani AI Chatbot</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
+<style>
+body { margin:0; font-family:Arial,sans-serif; display:flex; height:100vh; }
+#map { width:50%; height:100vh; }
+#chat-section { width:50%; display:flex; flex-direction:column; background:linear-gradient(to bottom,#FF9933 0%,#ffffff 50%,#138808 100%); }
+header { background:linear-gradient(to right,#FF9933,#ffffff,#138808); color:#000080; font-weight:bold; font-size:20px; padding:12px; text-align:center; border-bottom:2px solid #000080; }
+#lang-select-container { padding:10px; background:rgba(255,255,255,0.8); text-align:center; position:relative; }
+#lang-select { padding:5px; border-radius:5px; border:none; }
+#faq-btn { margin-left:10px;padding:5px 10px;border:none;border-radius:5px;background:#004080;color:white;cursor:pointer; }
+#faq-panel { display:none; position:absolute; top:50px; left:10px; background:white; border:1px solid #ccc; border-radius:8px; padding:10px; max-width:250px; z-index:1000; font-size:14px; }
+#key-features-container { padding:5px; text-align:center; }
+#key-features-container button { width:100%; padding:8px; background:#004080; color:white; border:none; border-radius:5px; cursor:pointer; font-weight:bold; margin-bottom:5px; }
+#key-features { display:none; max-height:180px; overflow-y:auto; padding:10px; background:rgba(255,255,255,0.9); border-radius:8px; border:1px solid #ccc; font-size:14px; line-height:1.5; text-align:left; }
+#chat-container { flex:1; padding:15px; overflow-y:auto; display:flex; flex-direction:column; }
+.message { max-width:70%; padding:10px; margin:8px 0; border-radius:10px; line-height:1.4; backdrop-filter:blur(5px); }
+.user { align-self:flex-end; background:#000080; color:white; border-bottom-right-radius:0; box-shadow:0 2px 4px rgba(0,0,0,0.2); }
+.bot { align-self:flex-start; background:#f9f9f9; color:#222; border:1px solid #ddd; border-bottom-left-radius:0; box-shadow:0 2px 4px rgba(0,0,0,0.1); }
+#input-container { display:flex; padding:10px; background:rgba(255,255,255,0.9); border-top:1px solid #ccc; }
+#user-input { flex:1; padding:10px; border:1px solid #aaa; border-radius:8px; font-size:14px; }
+#send-btn,#mic-btn { margin-left:10px; padding:10px 15px; background:#000080; color:white; border:none; border-radius:8px; cursor:pointer; }
+#send-btn:hover,#mic-btn:hover { background:#004080; }
+canvas { margin-top:10px; background:white; padding:10px; border-radius:8px; box-shadow:0px 2px 6px rgba(0,0,0,0.1); }
+#download-btn { margin-top:8px; padding:8px 12px; background:#004080; color:white; border:none; border-radius:6px; cursor:pointer; font-weight:bold; }
+#download-btn:hover { background:#002f50; }
+#send-btn, #mic-btn {
+  background: #031495;
+  border: none;
+  padding: 6px 10px;
+  border-radius: 50%;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-left: 5px;
+}
+#send-btn svg { transform: rotate(-20deg); }
+#mic-btn svg { transform: rotate(0deg); }
+#send-btn:hover, #mic-btn:hover { background: #45a049; }
+
+/* Legend */
+.legend-box {
+    position: absolute; 
+    top: 50px;
+    left: 50px;
+    background: #fff;
+    border: 1px solid #ccc;
+    border-radius: 8px;
+    padding: 10px 15px;
+    font-size: 14px;
+    line-height: 22px;
+    min-width: 140px;
+    cursor: move;
+    overflow: auto;
+    z-index: 2000;
+}
+.legend-box h4 { margin: 0 0 8px; font-size: 16px; }
+.legend-color { display: inline-block; width: 16px; height: 16px; margin-right: 8px; border: 1px solid #999; vertical-align: middle; }
+</style>
+</head>
+<body>
+
+<div id="map">Offline Map Loading...</div>
+
+<div id="chat-section">
+  <header>💧 Jalvaani AI Chatbot</header>
+
+  <div id="lang-select-container">
+    🌐 <select id="lang-select">
+        <option value="hi-IN">Select your language</option>
+        <option value="en-IN">English</option>
+    </select>
+
+    <button id="faq-btn">❓ FAQs</button>
+
+    <div id="faq-panel">
+      <ul>
+        <li>How to find groundwater data for a state?</li>
+        <li>How to download PDF reports?</li>
+        <li>How to change language?</li>
+        <li>What does stage of development mean?</li>
+      </ul>
+    </div>
+  </div>
+
+  <div id="key-features-container">
+    <button id="toggle-features">🌟 Show Key Features</button>
+    <div id="key-features">
+      <ul>
+        <li><b>Intelligent Query Handling:</b> Natural language & fuzzy logic.</li>
+        <li><b>Real-Time Access:</b> Current & historical groundwater data.</li>
+        <li><b>Interactive Visualizations:</b> Charts 2020–2024.</li>
+        <li><b>Multilingual Support:</b> Indian languages & English.</li>
+        <li><b>Offline Lite Mode:</b> Works without internet.</li>
+        <li><b>Downloadable Reports:</b> PDF per state.</li>
+        <li><b>Backtracking:</b> Navigate previously viewed states.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div id="chat-container"></div>
+
+ <div id="input-container">
+  <input type="text" id="user-input" placeholder="Ask about groundwater data..." aria-label="User input">
+
+  <button id="mic-btn" aria-label="Start voice input">
+    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M12 1v11"></path>
+      <path d="M19 11a7 7 0 0 1-14 0"></path>
+      <line x1="12" y1="23" x2="12" y2="17"></line>
+      <line x1="8" y1="23" x2="16" y2="23"></line>
+    </svg>
+  </button>
+
+  <button id="send-btn" aria-label="Send message">
+    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <line x1="22" y1="2" x2="11" y2="13"></line>
+      <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+    </svg>
+  </button>
+</div>
+
+<div id="legend" class="legend-box" contenteditable="false">
+  <h4>Status</h4>
+  <div><span class="legend-color" style="background: green"></span>Safe</div>
+  <div><span class="legend-color" style="background: orange"></span>Semi Critical</div>
+  <div><span class="legend-color" style="background: red"></span>Over Exploited</div>
+</div>
+
+<script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
+
+<script>
+const chatContainer=document.getElementById('chat-container');
+const userInput=document.getElementById('user-input');
+const sendBtn=document.getElementById('send-btn');
+const micBtn=document.getElementById('mic-btn');
+const langSelect=document.getElementById('lang-select');
+
+// FAQs toggle
+const faqBtn = document.getElementById('faq-btn');
+const faqPanel = document.getElementById('faq-panel');
+faqBtn.onclick = () => { faqPanel.style.display = (faqPanel.style.display === 'none' || faqPanel.style.display === '') ? 'block' : 'none'; };
+document.addEventListener('click', (e) => { if (!faqPanel.contains(e.target) && e.target !== faqBtn) faqPanel.style.display = 'none'; });
+
+// Groundwater Data
+const groundwaterData={
+  "andhra pradesh": {coords:[15.9129,79.7400], status:"Semi-Critical", recharge:"600 MCM", extraction:"450 MCM", stage:"75%", history:[72,75,77,79,80]},
+  "bihar": {coords:[25.0961,85.3131], status:"Over-Exploited", recharge:"350 MCM", extraction:"500 MCM", stage:"145%", history:[140,145,148,150,152]},
+  "kerala": {coords:[10.8505,76.2711], status:"Safe", recharge:"950 MCM", extraction:"400 MCM", stage:"42%", history:[42,43,44,45,46]},
+  "maharashtra": {coords:[19.7515,75.7139], status:"Over-Exploited", recharge:"900 MCM", extraction:"1200 MCM", stage:"133%", history:[130,133,135,138,140]},
+  "uttar pradesh": {coords:[26.8467,80.9462], status:"Critical", recharge:"700 MCM", extraction:"900 MCM", stage:"128%", history:[120,128,130,135,140]},
+  "tamil nadu": {coords:[11.1271,78.6569], status:"Safe", recharge:"800 MCM", extraction:"500 MCM", stage:"62%", history:[64,65,67,70,72]},
+  "karnataka": {coords:[15.3173,75.7138], status:"Semi-Critical", recharge:"650 MCM", extraction:"550 MCM", stage:"85%", history:[85,87,90,92,95]},
+  "rajasthan": {coords:[27.0238,74.2179], status:"Over-Exploited", recharge:"400 MCM", extraction:"600 MCM", stage:"150%", history:[150,155,160,165,170]},
+  "gujarat": {coords:[22.2587,71.1924], status:"Critical", recharge:"500 MCM", extraction:"700 MCM", stage:"140%", history:[140,145,150,155,160]},
+  "madhya pradesh": {coords:[23.4735,77.9479], status:"Over-Exploited", recharge:"750 MCM", extraction:"900 MCM", stage:"120%", history:[120,125,130,135,140]},
+  "west bengal": {coords:[22.9868,87.8550], status:"Safe", recharge:"950 MCM", extraction:"400 MCM", stage:"42%", history:[42,43,44,45,46]},
+  "odisha": {coords:[20.9517,85.0985], status:"Semi-Critical", recharge:"600 MCM", extraction:"450 MCM", stage:"75%", history:[72,75,77,80,82]},
+  "punjab": {coords:[31.1471,75.3412], status:"Over-Exploited", recharge:"300 MCM", extraction:"500 MCM", stage:"167%", history:[160,165,167,170,175]},
+  "haryana": {coords:[29.0588,76.0856], status:"Critical", recharge:"400 MCM", extraction:"600 MCM", stage:"150%", history:[140,145,150,155,160]},
+  "assam": {coords:[26.2006,92.9376], status:"Safe", recharge:"850 MCM", extraction:"300 MCM", stage:"35%", history:[35,36,37,38,38]}
+};
+
+// Initialize Map
+let map = L.map('map').setView([22.9734,78.6569], 5);
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19, attribution:'© OpenStreetMap'}).addTo(map);
+
+function getMarkerIcon(status){
+  const color=status==="Over-Exploited"?"red":status==="Semi-Critical"?"orange":"green";
+  return L.divIcon({className:'custom-marker',html:`<div style="width:15px;height:15px;background:${color};border-radius:50%;border:2px solid #fff"></div>`});
+}
+
+// Add Markers
+for(let state in groundwaterData){
+  let data=groundwaterData[state];
+  let marker=L.marker(data.coords,{icon:getMarkerIcon(data.status)}).addTo(map);
+  marker.bindPopup(`<b>${state.toUpperCase()}</b><br>Status: ${data.status}<br>Recharge: ${data.recharge}<br>Extraction: ${data.extraction}<br>Stage: ${data.stage}`);
+  marker.on('click',()=>showStateData(state,data));
+}
+
+// Explanations
+function getStageExplanation(stageStr){
+  const stage=parseInt(stageStr);
+  if(stage<90) return "Groundwater extraction is within sustainable limits.";
+  if(stage<120) return "Groundwater is moderately stressed; careful management needed.";
+  return "Groundwater is over-exploited; urgent conservation required.";
+}
+function getRechargeExplanation(rechargeStr){
+  const recharge=parseInt(rechargeStr);
+  if(recharge<400) return "Low recharge: Limited groundwater replenishment.";
+  if(recharge<700) return "Moderate recharge: Groundwater is moderately replenished.";
+  return "High recharge: Groundwater is well replenished.";
+}
+function getExtractionExplanation(extractionStr){
+  const extraction=parseInt(extractionStr);
+  if(extraction<400) return "Low extraction: Water usage is sustainable.";
+  if(extraction<700) return "Moderate extraction: Water usage is moderate, monitor carefully.";
+  return "High extraction: Water usage is high, may stress groundwater resources.";
+}
+
+// Show state data in chat
+function showStateData(state,data){
+  chatContainer.innerHTML="";
+  addMessage(`Groundwater Data for <b>${state.toUpperCase()}</b>:`,"bot");
+  addMessage(
+    `Status: ${data.status}<br>
+     Recharge: ${data.recharge} <i>(${getRechargeExplanation(data.recharge)})</i><br>
+     Extraction: ${data.extraction} <i>(${getExtractionExplanation(data.extraction)})</i><br>
+     Stage of Development: ${data.stage} <i>(${getStageExplanation(data.stage)})</i>`,
+    "bot"
+  );
+  map.setView(data.coords,7,{animate:true});
+  generateChart(state,data.history);
+  addDownloadButton(state,data);
+}
+
+// Speak function
+function speak(text, lang = langSelect.value) {
+    if ('speechSynthesis' in window) {
+        const utterance = new SpeechSynthesisUtterance(text);
+        utterance.lang = lang;
+        utterance.rate = 1;
+        utterance.pitch = 1;
+        window.speechSynthesis.speak(utterance);
+    }
+}
+
+// Add Message
+function addMessage(html,sender){
+  let div=document.createElement('div');
+  div.className='message '+sender;
+  div.innerHTML=html;
+  chatContainer.appendChild(div);
+  chatContainer.scrollTop=chatContainer.scrollHeight;
+  if(sender==='bot'){
+    let tempDiv=document.createElement('div');
+    tempDiv.innerHTML=html;
+    speak(tempDiv.textContent || tempDiv.innerText);
+  }
+}
+
+// Chart 2020–2024
+function generateChart(state,history){
+  let oldCanvas=document.getElementById('chart-'+state.replace(/\s+/g,'-'));
+  if(oldCanvas) oldCanvas.remove();
+  let canvas=document.createElement('canvas');
+  canvas.id='chart-'+state.replace(/\s+/g,'-');
+  canvas.width=400; canvas.height=350;
+  chatContainer.appendChild(canvas);
+  new Chart(canvas,{
+    type:'line',
+    data:{
+      labels:['2020','2021','2022','2023','2024'],
+      datasets:[{
+        label:'Stage of Development (%)',
+        data:history.slice(-5),
+        borderColor:'blue',
+        backgroundColor:'rgba(0,0,255,0.1)',
+        fill:true,
+        tension:0.3
+      }]
+    },
+    options:{responsive:false, scales:{y:{beginAtZero:true}}}
+  });
+}
+
+// PDF Download
+function addDownloadButton(state,data){
+  let btn=document.createElement('button');
+  btn.id='download-btn';
+  btn.innerText=`Download ${state.toUpperCase()} Report (PDF)`;
+  btn.onclick=()=>generatePDF(state,data);
+  chatContainer.appendChild(btn);
+  chatContainer.scrollTop=chatContainer.scrollHeight;
+}
+
+async function generatePDF(state,data){
+  const {jsPDF}=window.jspdf;
+  let doc=new jsPDF();
+  doc.setFontSize(16); doc.text(`Groundwater Report: ${state.toUpperCase()}`,10,20);
+  doc.setFontSize(12);
+  doc.text(`Status: ${data.status}`,10,30);
+  doc.text(`Recharge: ${data.recharge} (${getRechargeExplanation(data.recharge)})`,10,40);
+  doc.text(`Extraction: ${data.extraction} (${getExtractionExplanation(data.extraction)})`,10,50);
+  doc.text(`Stage of Development: ${data.stage} (${getStageExplanation(data.stage)})`,10,60);
+  let canvas=document.getElementById('chart-'+state.replace(/\s+/g,'-'));
+  if(canvas){ let img=canvas.toDataURL('image/png'); doc.addImage(img,'PNG',10,70,180,90);}
+  doc.save(`${state.replace(/\s+/g,'_')}_Groundwater_Report.pdf`);
+}
+
+// Chat input
+sendBtn.onclick=function(){
+  let text=userInput.value.trim();
+  if(!text) return;
+  addMessage(text,'user'); userInput.value='';
+  processUserInput(text);
+};
+userInput.addEventListener('keypress',e=>{if(e.key==='Enter') sendBtn.click();});
+
+// Speech Recognition
+let recognition;
+if('webkitSpeechRecognition' in window){
+  recognition=new webkitSpeechRecognition();
+  recognition.continuous=false; recognition.interimResults=false; recognition.lang=langSelect.value;
+  recognition.onresult=e=>{ let t=e.results[0][0].transcript; userInput.value=t; sendBtn.click();}
+}
+micBtn.onclick=()=>{ if(recognition){ recognition.lang=langSelect.value; recognition.start();} else alert("Speech recognition not supported");};
+langSelect.onchange=()=>{if(recognition) recognition.lang=langSelect.value;};
+
+// Process User
+function processUserInput(text){
+  text=text.toLowerCase(); let found=false;
+  for(let state in groundwaterData){
+    if(text.includes(state)){
+      let data=groundwaterData[state];
+      showStateData(state,data);
+      found=true; break;
+    }
+  }
+  if(!found) addMessage("Sorry, I couldn't find data for that state. Please try another state name.","bot");
+}
+
+// Key Features toggle
+document.getElementById('toggle-features').onclick=function(){
+  let f=document.getElementById('key-features');
+  if(f.style.display==='none'||f.style.display===''){f.style.display='block'; this.innerText="Hide Key Features";}
+  else{f.style.display='none'; this.innerText="🌟 Show Key Features";}
+};
+
+// Draggable legend
+const legend = document.getElementById("legend");
+let isDragging=false, offsetX, offsetY;
+legend.addEventListener("mousedown",(e)=>{ isDragging=true; offsetX=e.clientX-legend.offsetLeft; offsetY=e.clientY-legend.offsetTop; });
+document.addEventListener("mousemove",(e)=>{ if(isDragging){ legend.style.left=e.clientX-offsetX+"px"; legend.style.top=e.clientY-offsetY+"px"; }});
+document.addEventListener("mouseup",()=>{ isDragging=false; });
+
+// Initial greeting
+const greetingText = "Hello! I am your Jalvaani AI Chatbot. Ask me about groundwater data across India.";
+addMessage(greetingText,"bot");  
+speak(greetingText);              
+</script>
+</body>
+</html>
